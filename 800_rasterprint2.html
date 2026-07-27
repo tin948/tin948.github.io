@@ -1,118 +1,320 @@
-<html>
+<!DOCTYPE html>
+<html lang="th">
 <head>
-<title>Raster Graphics</title>
+<meta charset="UTF-8">
+<title>Raster Graphics - UI Interactive</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background-color: #000;
+    font-family: sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  .app-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* คอลัมน์ซ้าย (รวมป้าย Print และ แผงเครื่องมือ) */
+  .left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  /* ป้ายชื่อ Print */
+  .print-badge {
+    background-color: #f7eaa8;
+    border-radius: 30px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  }
+  .print-badge h1 {
+    font-size: 36px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  .print-badge h1 span:nth-child(1) { color: #ff0000; }
+  .print-badge h1 span:nth-child(2) { color: #f4a107; }
+  .print-badge h1 span:nth-child(3) { color: #056227; }
+  .print-badge h1 span:nth-child(4) { color: #3002ff; }
+
+  /* แผงเมนู (สีเหลืองอ่อน) */
+  .panel {
+    background-color: #f7eaa8;
+    border-radius: 40px;
+    padding: 20px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  }
+
+  .tools-panel {
+    width: 140px;
+  }
+  .tool-btn {
+    width: 100%;
+    padding: 12px 0;
+    background-color: #d1d1d1;
+    border: none;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #000;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+  }
+  .tool-btn:hover {
+    background-color: #bebebe;
+  }
+  .tool-btn.active {
+    background-color: #999;
+    color: #fff;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+  }
+
+  /* Canvas ตรงกลาง */
+  .canvas-container {
+    background-color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #canvas {
+    width: 800px;
+    height: 800px;
+    border: 1px solid #ccc;
+    image-rendering: pixelated;
+    cursor: crosshair;
+  }
+
+  /* คอลัมน์ขวา (รวมแผงสี และ แถบสไลด์ย่อขยาย) */
+  .right-column {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .colors-panel {
+    width: 110px;
+    height: 500px;
+    justify-content: flex-start;
+  }
+  .color-btn {
+    width: 100%;
+    height: 45px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border 0.1s ease;
+  }
+  .color-btn:hover {
+    border: 2px solid #fff;
+  }
+  .color-btn.active {
+    border: 3px solid #000;
+  }
+
+  /* แถบสไลด์ควบคุมย่อ-ขยาย */
+  .slider-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    height: 500px;
+    padding: 20px 10px;
+    color: #fff;
+    font-size: 24px;
+    font-weight: bold;
+  }
+  .slider-panel input[type=range] {
+    writing-mode: bt-lr; /* สำหรับ IE */
+    -webkit-appearance: slider-vertical; /* สำหรับ Chrome, Safari, Edge */
+    width: 10px;
+    height: 400px;
+    background: #d1d1d1;
+    outline: none;
+    cursor: pointer;
+  }
+</style>
 </head>
 <body>
-<h1>ติณณ์ ศรีรุจิเมธากร</h1>
-<p>tin.srir@ku.th</p>
-<p>print</p>
-<canvas id="canvas" width="500" height="500"
-style="width:800px; height:800px; border:1px solid #4303f2; image-rendering: pixelated;">
-</canvas>
+
+<div class="app-container">
+  
+  <!-- ฝั่งซ้าย: ป้าย Print และ แผงเครื่องมือ -->
+  <div class="left-column">
+    <div class="print-badge">
+      <h1>p<span>r</span><span>i</span><span>n</span>t</h1>
+    </div>
+    <div class="panel tools-panel">
+      <button class="tool-btn" onclick="setTool(2, this)">สี่เหลี่ยม</button>
+      <button class="tool-btn active" onclick="setTool(1, this)">ขีด</button>
+      <button class="tool-btn" onclick="setTool(3, this)">สามเหลี่ยม</button>
+      <button class="tool-btn" onclick="setTool(4, this)">วงกลม</button>
+      <button class="tool-btn" onclick="setTool(5, this)">ดินสอ</button>
+      <button class="tool-btn" onclick="setTool(6, this)">ถังสี</button>
+      <button class="tool-btn" onclick="setEraser(this)">ยางลบ</button>
+    </div>
+  </div>
+
+  <!-- ตรงกลาง: Canvas -->
+  <div class="canvas-container">
+    <canvas id="canvas" width="500" height="500"></canvas>
+  </div>
+
+  <!-- ฝั่งขวา: แผงสี และ แถบสไลด์ย่อขยาย -->
+  <div class="right-column">
+    <div class="panel colors-panel">
+      <div class="color-btn active" style="background-color: rgb(0,0,0);" onclick="setColor(0,0,0, this)"></div>
+      <div class="color-btn" style="background-color: rgb(255,0,0);" onclick="setColor(255,0,0, this)"></div>
+      <div class="color-btn" style="background-color: rgb(255,120,0);" onclick="setColor(255,120,0, this)"></div>
+      <div class="color-btn" style="background-color: rgb(255,255,0);" onclick="setColor(255,255,0, this)"></div>
+      <div class="color-btn" style="background-color: rgb(0,255,0);" onclick="setColor(0,255,0, this)"></div>
+      <div class="color-btn" style="background-color: rgb(0,255,255);" onclick="setColor(0,255,255, this)"></div>
+      <div class="color-btn" style="background-color: rgb(0,0,255);" onclick="setColor(0,0,255, this)"></div>
+      <div class="color-btn" style="background-color: rgb(128,0,128);" onclick="setColor(128,0,128, this)"></div>
+    </div>
+
+    <div class="slider-panel">
+      <span>+</span>
+      <input type="range" id="sizeSlider" min="0" max="100" value="1" oninput="updateBrushSize(this.value)">
+      <span>-</span>
+    </div>
+  </div>
+
+</div>
+
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
 const imageData = ctx.createImageData(canvas.width, canvas.height);
-const pixels = imageData.data; // Array of color [R,G,B,A, R,G,B,A, ...]
+const pixels = imageData.data; 
 const imageData2 = ctx.createImageData(canvas.width, canvas.height);
-const pixels2 = imageData2.data; // Array of color [R,G,B,A, R,G,B,A, ...]
-function putPixel(Pixel,x,y,r,g,b,a=255)
-{
-    const idx =(y*canvas.width+x)*4;
-    if(Pixel==1){
+const pixels2 = imageData2.data; 
+
+// เติมสีพื้นหลัง Canvas ให้เป็นสีขาวเริ่มต้น
+for (let i = 0; i < pixels.length; i += 4) {
+  pixels[i] = 255;
+  pixels[i+1] = 255;
+  pixels[i+2] = 255;
+  pixels[i+3] = 255;
+}
+
+function putPixel(Pixel, x, y, r, g, b, a=255) {
+    const idx = (y * canvas.width + x) * 4;
+    if (Pixel == 1) {
       pixels[idx] = r;
-      pixels[idx+1]=g;
-      pixels[idx+2]=b;
-      pixels[idx+3]=a;
-    }else if(Pixel==2){
+      pixels[idx+1] = g;
+      pixels[idx+2] = b;
+      pixels[idx+3] = a;
+    } else if (Pixel == 2) {
       pixels2[idx] = r;
-      pixels2[idx+1]=g;
-      pixels2[idx+2]=b;
-      pixels2[idx+3]=a;
+      pixels2[idx+1] = g;
+      pixels2[idx+2] = b;
+      pixels2[idx+3] = a;
     }
 }
-function drawLine(Pixel,x1,y1,x2,y2,r,g,b,a=255)
-{
-    const dx=Math.abs(x2-x1);
-    const dy=Math.abs(y2-y1);
-    if(dx>dy){
-      const m=(y2-y1)/(x2-x1);
-      let c=y1-m*x1;
-      for(let x=Math.min(x1,x2);x<=Math.max(x1,x2);x++){
-        const y=Math.round(m*x+c);
-        putPixel(Pixel,x,y,r,g,b,a)
+
+function drawLine(Pixel, x1, y1, x2, y2, r, g, b, a=255) {
+    const dx = Math.abs(x2 - x1);
+    const dy = Math.abs(y2 - y1);
+    if (dx > dy) {
+      const m = (y2 - y1) / (x2 - x1);
+      let c = y1 - m * x1;
+      for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
+        const y = Math.round(m * x + c);
+        putPixel(Pixel, x, y, r, g, b, a);
       } 
-    }else{
-      const m=(x2-x1)/(y2-y1);
-      let c=x1-m*y1;
-      for(let y=Math.min(y1,y2);y<=Math.max(y1,y2);y++){
-        const x=Math.round(m*y+c);
-        putPixel(Pixel,x,y,r,g,b,a=255)
+    } else {
+      const m = (x2 - x1) / (y2 - y1);
+      let c = x1 - m * y1;
+      for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
+        const x = Math.round(m * y + c);
+        putPixel(Pixel, x, y, r, g, b, a);
       } 
     }
 }
-function drawrine(Pixel,x1,y1,x2,y2,r,g,b,a=255){
-    drawLine(Pixel,x1,y1,x1,y2,r,g,b,a=255)
-    drawLine(Pixel,x1,y1,x2,y1,r,g,b,a=255)
-    drawLine(Pixel,x1,y2,x2,y2,r,g,b,a=255)
-    drawLine(Pixel,x2,y1,x2,y2,r,g,b,a=255)
+
+function drawrine(Pixel, x1, y1, x2, y2, r, g, b, a=255) {
+    drawLine(Pixel, x1, y1, x1, y2, r, g, b, a);
+    drawLine(Pixel, x1, y1, x2, y1, r, g, b, a);
+    drawLine(Pixel, x1, y2, x2, y2, r, g, b, a);
+    drawLine(Pixel, x2, y1, x2, y2, r, g, b, a);
 }
-function drawtri(Pixel,x1,y1,x2,y2,r,g,b,a=255) {
-  const xl = Math.abs(x1-10);
-  const xr = Math.abs(x1+10);
-  drawLine(Pixel,xl, y1, x2, y2, r, g, b, a = 255);
-  drawLine(Pixel,xl, y1, xr, y1, r, g, b, a = 255);
-  drawLine(Pixel,xr, y1, x2, y2, r, g, b, a = 255);
+
+function drawtri(Pixel, x1, y1, x2, y2, r, g, b, a=255) {
+  const xl = Math.abs(x1 - 10);
+  const xr = Math.abs(x1 + 10);
+  drawLine(Pixel, xl, y1, x2, y2, r, g, b, a);
+  drawLine(Pixel, xl, y1, xr, y1, r, g, b, a);
+  drawLine(Pixel, xr, y1, x2, y2, r, g, b, a);
 }
-function drawEllipse(Pixel,cx,cy,rx,ry,r,g,b,a=255) {
-  const ra=Math.sqrt(Math.pow(cx-rx,2)+Math.pow(cy-ry,2));
-  const rb=Math.abs(ra);
-  const rc=Math.round(rb);
+
+function drawEllipse(Pixel, cx, cy, rx, ry, r, g, b, a=255) {
+  const ra = Math.sqrt(Math.pow(cx - rx, 2) + Math.pow(cy - ry, 2));
+  const rb = Math.abs(ra);
+  const rc = Math.round(rb);
   const thickness = 0.7;
   for (let y = -rc; y <= rc; y++) {
     for (let x = -rc; x <= rc; x++) {
         const currentRadius = Math.sqrt((x * x) + (y * y));
         if (Math.abs(currentRadius - rc) < thickness) {
-            putPixel(Pixel,cx + x, cy + y, r, g, b, a);
+            putPixel(Pixel, cx + x, cy + y, r, g, b, a);
         }
     }
   }
 }
-function drawRectFilled2(Pixel,x1, y1, x2, y2, r, g, b, a = 255) {
+
+function drawRectFilled2(Pixel, x1, y1, x2, y2, r, g, b, a=255) {
     for (let y = y1; y <= y2; y++) {
       for (let x = x1; x <= x2; x++) {
-          putPixel(Pixel,x, y, r, g, b);
+          putPixel(Pixel, x, y, r, g, b, a);
       }
     }
 }
 
-function drawfull(key,Pixel,x1,y1,x2,y2,r,g,b,a=255){
-  if(key==1){
-    drawLine(Pixel,x1,y1,x2,y2,r,g,b,a=255);
-  }else if(key==2){
-    drawrine(Pixel,x1,y1,x2,y2,r,g,b,a=255);
-  }else if(key==3){
-    drawtri(Pixel,x1,y1,x2,y2,r,g,b,a=255);
-  }else if(key==4){
-    drawEllipse(Pixel,x1,y1,x2,y2,r,g,b,a=255);
-  }else if(key==6){
-    drawRectFilled2(Pixel,0, 0, canvas.width - 1, canvas.height - 1,r,g,b,a=255);
+function drawfull(key, Pixel, x1, y1, x2, y2, r, g, b, a=255) {
+  if (key == 1) {
+    drawLine(Pixel, x1, y1, x2, y2, r, g, b, a);
+  } else if (key == 2) {
+    drawrine(Pixel, x1, y1, x2, y2, r, g, b, a);
+  } else if (key == 3) {
+    drawtri(Pixel, x1, y1, x2, y2, r, g, b, a);
+  } else if (key == 4) {
+    drawEllipse(Pixel, x1, y1, x2, y2, r, g, b, a);
+  } else if (key == 6) {
+    drawRectFilled2(Pixel, 0, 0, canvas.width - 1, canvas.height - 1, r, g, b, a);
   }
 }
 
-//ดินสอ
-let r2=0;
-function drawEllipse2(Pixel,cx, cy, r1, r, g, b, a = 255) {
+// ดินสอ
+let r2 = 0;
+function drawEllipse2(Pixel, cx, cy, r1, r, g, b, a=255) {
   for (let y = -r1; y <= r1; y++) {
     for (let x = -r1; x <= r1; x++) {
       if ((x * x) + (y * y) <= (r1 * r1)) {
-        putPixel(Pixel,cx + x, cy + y, r, g, b, a);
+        putPixel(Pixel, cx + x, cy + y, r, g, b, a);
       }
     }
   }
 }
-function drawLineO(Pixel,x1, y1, x2, y2, r, g, b, a = 255) {
+
+function drawLineO(Pixel, x1, y1, x2, y2, r, g, b, a=255) {
   const dx = Math.abs(x2 - x1);
   const dy = Math.abs(y2 - y1);
   if (dx > dy) {
@@ -120,146 +322,138 @@ function drawLineO(Pixel,x1, y1, x2, y2, r, g, b, a = 255) {
     let c = y1 - m * x1;
     for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
       const y = Math.round(m * x + c);
-      drawEllipse2(Pixel,x, y, r2, r, g, b, a);
+      drawEllipse2(Pixel, x, y, r2, r, g, b, a);
     }
   } else {
     const m = (x2 - x1) / (y2 - y1);
     let c = x1 - m * y1;
     for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
       const x = Math.round(m * y + c);
-      drawEllipse2(Pixel,x, y, r2, r, g, b, a);
+      drawEllipse2(Pixel, x, y, r2, r, g, b, a);
     }
   }
 }
 
 function toScaledMousePos(posX, posY) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      return {
-        x: Math.floor((posX - rect.left) * scaleX),
-        y: Math.floor((posY - rect.top) * scaleY)
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return {
+    x: Math.floor((posX - rect.left) * scaleX),
+    y: Math.floor((posY - rect.top) * scaleY)
   };
 }
-let Image1=null;
+
 let mouseX = 0, mouseY = 0;
-let previovsX = 0,previovsY = 0;
-let open=1;
-let Animating=null;
+let previovsX = 0, previovsY = 0;
+let open = 1;
+let Animating = null;
 let isDragging = false;
-let xw=0,yw=0;
-let r=0,g=0,b=0;
-let num=1;
-function drawRectFilled(x1, y1, x2, y2, r, g, b, a = 255) {
+let xw = 0, yw = 0;
+let r = 0, g = 0, b = 0;
+let num = 1;
+
+function drawRectFilled(x1, y1, x2, y2, r, g, b, a=255) {
     for (let y = y1; y <= y2; y++) {
       for (let x = x1; x <= x2; x++) {
-          putPixel(2,x, y, r, g, b);
+          putPixel(2, x, y, r, g, b, a);
       }
     }
 }
+
 function copyImage1ToImage2() {
   for (let i = 0; i < pixels.length; i++) {
     pixels2[i] = pixels[i];
   }
 }
-window.addEventListener('keydown', (event) =>{
-  if(event.key=='a'){//ขีด
-    num=1;
-  }else if(event.key=='s'){//สี่เหลี่ยม
-    num=2;
-  }else if(event.key=='d'){//สามเหลี่ยม
-    num=3;
-  }else if(event.key=='f'){//วงกลม
-    num=4;
-  }else if(event.key=='g'){//ดินสอ
-    num=5;
-  }else if(event.key=='h'){//ถังสี
-    num=6;
-  }else if(event.key=='['){//ย่อ
+
+// ฟังก์ชันควบคุม UI
+function setTool(toolNum, el) {
+  num = toolNum;
+  document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+function setColor(red, green, blue, el) {
+  r = red;
+  g = green;
+  b = blue;
+  document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+function setEraser(el) {
+  r = 255;
+  g = 255;
+  b = 255;
+  document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+// ฟังก์ชันอัปเดตขนาดหัวแปรงจากแถบสไลด์
+function updateBrushSize(val) {
+  r2 = parseInt(val);
+  document.getElementById('sizeSlider').value = r2;
+}
+
+// ควบคุมผ่านแป้นพิมพ์และซิงค์กับแถบสไลด์
+window.addEventListener('keydown', (event) => {
+  if (event.key == '[') {
     r2--;
-    if(r2<0){
-      r2=0;
-    }
-  }else if(event.key==']'){//ขยาย
+    if (r2 < 0) r2 = 0;
+    document.getElementById('sizeSlider').value = r2;
+  } else if (event.key == ']') {
     r2++;
-  }else if(event.key=='1'){//ดำ
-    r = 0; g = 0; b = 0;
-  }else if(event.key=='2'){//แดง
-    r = 255; g = 0; b = 0;
-  }else if(event.key=='3'){//ส้ม
-    r = 220; g = 120; b = 0;
-  }else if(event.key=='4'){//เหลือง
-    r = 255; g = 255; b = 0;
-  }else if(event.key=='5'){//เขียว
-    r = 0; g = 255; b = 0;
-  }else if(event.key=='6'){//ฟ้า
-    r = 0; g = 255; b = 255;
-  }else if(event.key=='7'){//น้ำเงิน
-    r = 0; g = 0; b = 255;
-  }else if(event.key=='8'){//ม่วง
-    r = 128; g = 0; b = 128;
-  }else if(event.key=='e'){//ยางลบ
-    r = 255; g = 255; b = 255;
+    if (r2 > 100) r2 = 100;
+    document.getElementById('sizeSlider').value = r2;
   }
-})
+});
+
 canvas.addEventListener('mousemove', (event) => {
   const { x, y } = toScaledMousePos(event.clientX, event.clientY);
-  mouseX=x;
-  mouseY=y;
-  if (isDragging && num==5) {
-        drawLineO(1,previovsX, previovsY, x, y, r, g, b);
-        ctx.putImageData(imageData, 0, 0);
-      }
-      previovsX = x;
-      previovsY = y;
-})
-// กดเมาส์ลง -> แสดง imageData2
+  mouseX = x;
+  mouseY = y;
+  if (isDragging && num == 5) {
+    drawLineO(1, previovsX, previovsY, x, y, r, g, b);
+    ctx.putImageData(imageData, 0, 0);
+  }
+  previovsX = x;
+  previovsY = y;
+});
+
 canvas.addEventListener('mousedown', (event) => {
   isDragging = true;
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  const x = Math.floor((event.clientX - rect.left) * scaleX);
-  const y = Math.floor((event.clientY - rect.top) * scaleY);
-  putPixel(x, y, r, g, b);
-  xw=x;
-  yw=y;
+  const { x, y } = toScaledMousePos(event.clientX, event.clientY);
+  putPixel(1, x, y, r, g, b);
+  xw = x;
+  yw = y;
   if (open !== 2) {
     open = 2;
     animate();
   }
 });
-// ปล่อยเมาส์ขึ้น -> แสดง imageData1
+
 canvas.addEventListener('mouseup', (event) => {
   isDragging = false;
   open = 1;
   if (Animating) {
     cancelAnimationFrame(Animating);
   }
-  // แสดงผล imageData1 เมื่อปล่อยเมาส์
-  drawfull(num,1, xw, yw, mouseX, mouseY, r, g, b);
+  drawfull(num, 1, xw, yw, mouseX, mouseY, r, g, b);
   ctx.putImageData(imageData, 0, 0);        
 });
+
 function animate() {
   if (open == 2) {
-    drawRectFilled(0, 0, canvas.width - 1, canvas.height - 1,255,255,255);
+    drawRectFilled(0, 0, canvas.width - 1, canvas.height - 1, 255, 255, 255);
     copyImage1ToImage2();
-    drawfull(num,2, xw, yw, mouseX, mouseY, r, g, b);
-    // แสดงผล imageData2
+    drawfull(num, 2, xw, yw, mouseX, mouseY, r, g, b);
     ctx.putImageData(imageData2, 0, 0);
     Animating = requestAnimationFrame(animate);
   }
 }
+
 ctx.putImageData(imageData, 0, 0);
 </script>
-<p>'1'=ดำ,'2'=แดง,'3'=ส้ม,'4'=เหลือง,</p>
-<p>'5'=เขียว,'6'=ฟ้า,'7'=น้ำเงิน,'8'=ม่วง</p>
-<p>'['=ย่อ,']'=ขยาย</p>
-<p>'e'=ยางลบ</p>
-<p>'a'=ขีด,'s'=สี่เหลี่ยม,'d'=สามเหลี่ยม,</p>
-<p>'f'=วงกลม,'g'=ดินสอ,'h'=ถังสี</p>
-<p>transformation</p>
-<p><a href="https://tin948.github.io/" target="_blank">https://tin948.github.io/</a></p>
-<br>
 </body>
 </html>
