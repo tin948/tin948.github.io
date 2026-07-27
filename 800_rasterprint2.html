@@ -238,14 +238,14 @@ function drawLine(Pixel, x1, y1, x2, y2, r, g, b, a=255) {
       let c = y1 - m * x1;
       for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
         const y = Math.round(m * x + c);
-        putPixel(Pixel, x, y, r, g, b, a);
+        drawEllipse2(Pixel, x, y, r2, r, g, b, a);
       } 
     } else {
       const m = (x2 - x1) / (y2 - y1);
       let c = x1 - m * y1;
       for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
         const x = Math.round(m * y + c);
-        putPixel(Pixel, x, y, r, g, b, a);
+        drawEllipse2(Pixel, x, y, r2, r, g, b, a);
       } 
     }
 }
@@ -310,26 +310,6 @@ function drawEllipse2(Pixel, cx, cy, r1, r, g, b, a=255) {
       if ((x * x) + (y * y) <= (r1 * r1)) {
         putPixel(Pixel, cx + x, cy + y, r, g, b, a);
       }
-    }
-  }
-}
-
-function drawLineO(Pixel, x1, y1, x2, y2, r, g, b, a=255) {
-  const dx = Math.abs(x2 - x1);
-  const dy = Math.abs(y2 - y1);
-  if (dx > dy) {
-    const m = (y2 - y1) / (x2 - x1);
-    let c = y1 - m * x1;
-    for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
-      const y = Math.round(m * x + c);
-      drawEllipse2(Pixel, x, y, r2, r, g, b, a);
-    }
-  } else {
-    const m = (x2 - x1) / (y2 - y1);
-    let c = x1 - m * y1;
-    for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-      const x = Math.round(m * y + c);
-      drawEllipse2(Pixel, x, y, r2, r, g, b, a);
     }
   }
 }
@@ -414,7 +394,7 @@ canvas.addEventListener('mousemove', (event) => {
   mouseX = x;
   mouseY = y;
   if (isDragging && num == 5) {
-    drawLineO(1, previovsX, previovsY, x, y, r, g, b);
+    drawLine(1, previovsX, previovsY, x, y, r, g, b);
     ctx.putImageData(imageData, 0, 0);
   }
   previovsX = x;
