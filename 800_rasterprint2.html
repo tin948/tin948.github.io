@@ -274,7 +274,7 @@ function drawEllipse(Pixel, cx, cy, rx, ry, r, g, b, a=255) {
     for (let x = -rc; x <= rc; x++) {
         const currentRadius = Math.sqrt((x * x) + (y * y));
         if (Math.abs(currentRadius - rc) < thickness) {
-            putPixel(Pixel, cx + x, cy + y, r, g, b, a);
+            drawEllipse2(Pixel, cx + x, cy + y,r2, r, g, b, a);
         }
     }
   }
