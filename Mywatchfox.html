@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Fox</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* สไตล์สำหรับปุ่ม UI เมนูด้านซ้าย */
+        #menu-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .menu-btn {
+            background-color: black;
+            color: white;
+            padding: 12px 20px;
+            font-family: sans-serif;
+            font-weight: bold;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background 0.2s;
+        }
+
+        .menu-btn:hover {
+            background-color: #333;
+        }
+
+        /* สไตล์เฉพาะสำหรับปุ่ม Go to Print (สีเขียว) */
+        #btn-goto-print {
+            background-color: #00b050;
+            display: none; /* ซ่อนไว้เป็นค่าเริ่มต้น */
+        }
+
+        #btn-goto-print:hover {
+            background-color: #009643;
+        }
+
+        /* สไตล์สำหรับปุ่มควบคุมเพลง (เริ่มต้นเป็นสถานะ "ปิดเพลง" สีแดง) */
+        #btn-music {
+            background-color: #ff3b30;
+        }
+
+        #btn-music:hover {
+            background-color: #d32f2f;
+        }
+
+        /* คลาสสำหรับสถานะเปิดเพลง (สีฟ้า) */
+        .music-on {
+            background-color: #0084ff !important;
+        }
+
+        .music-on:hover {
+            background-color: #006ae6 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ระบบเสียงเพลงพื้นหลัง -->
+    <audio id="bgm" src="https://tin948.github.io/Toby_Fox_-_19._Sunset_of_Seven_Suns_DELTARUNE_Chapter_5_Soundtrack_(mp3.pm).mp3" loop></audio>
+
+    <!-- UI Buttons จัดเรียงตามลำดับ -->
+    <div id="menu-container">
+        <!-- ปุ่มควบคุมเพลงอยู่ด้านบนสุด -->
+        <button class="menu-btn" id="btn-music">ปิดเพลง</button>
+        <button class="menu-btn" id="btn-reset">กลับเป็นมุมมองเดิม</button>
+        <button class="menu-btn" id="btn-profile">หน้านิสิต</button>
+        <button class="menu-btn" id="btn-history">ประวัติ</button>
+        <button class="menu-btn" id="btn-project">โปรเจค</button>
+        <!-- ปุ่ม Go to Print ที่จะแสดงขึ้นมาเฉพาะตอนกดโปรเจค -->
+        <button class="menu-btn" id="btn-goto-print">Go to Print</button>
+    </div>
+
+    <!-- core three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+
+    <script>
+
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // Shadow
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // --- เพิ่มการตั้งค่า Tone Mapping ตรงนี้ครับ ---
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1; 
+        // ------------------------------------------
+
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+
+        
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        
+        // มุมมองเริ่มต้น
+        const defaultCameraPos = new THREE.Vector3(8, 5, 5);
+        const defaultTarget = new THREE.Vector3(0, 0, 0);
+
+        camera.position.copy(defaultCameraPos);
+        camera.lookAt(defaultTarget);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.copy(defaultTarget);
+
+        const abmientLight = new THREE.AmbientLight(0x404040, 0.5); // soft white light
+        scene.add(abmientLight);
+    
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(10, 10, 10);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        const exrSkyboxUrl = 'https://tin948.github.io/qwantani_dusk_2_puresky_1k.exr';
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        new THREE.EXRLoader()
+            .setDataType(THREE.UnsignedByteType)
+            .load(exrSkyboxUrl, (texture) => {
+                const skybox = pmremGenerator.fromEquirectangular(texture).texture;
+                scene.background = skybox;
+                scene.environment = skybox;
+
+                texture.dispose();
+                pmremGenerator.dispose();
+            }, undefined, (error) => {
+                console.error('Unable to load EXR skybox:', error);
+            });
+
+
+        // load glb และใช้ pbr material
+        const clock = new THREE.Clock();
+        let mixer;
+        const loader = new THREE.GLTFLoader();
+        loader.load('https://tin948.github.io/fox70.glb', (gltf) => {
+            const model = gltf.scene;
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            model.position.set(0, 0, 1);
+            model.scale.set(3, 3, 3);
+            scene.add(model);
+            mixer = new THREE.AnimationMixer(model);
+            const earclip = THREE.AnimationClip.findByName(gltf.animations, 'earAction');
+            const ear2clip = THREE.AnimationClip.findByName(gltf.animations, 'ear2Action');
+            const Tail1clip = THREE.AnimationClip.findByName(gltf.animations, 'Tail1Action');
+            const Tail2clip = THREE.AnimationClip.findByName(gltf.animations, 'Tail2Action');
+            const Tail3clip = THREE.AnimationClip.findByName(gltf.animations, 'Tail3Action');
+
+            if (earclip) mixer.clipAction(earclip).play();
+            if (ear2clip) mixer.clipAction(ear2clip).play();
+            if (Tail1clip) mixer.clipAction(Tail1clip).play();
+            if (Tail2clip) mixer.clipAction(Tail2clip).play();
+            if (Tail3clip) mixer.clipAction(Tail3clip).play();
+        });
+      
+        // ตัวแปรสำหรับการเคลื่อนอนิเมชันกล้อง (Camera Tweening)
+        let isTransitioning = false;
+        let targetCamPos = new THREE.Vector3();
+        let targetControlsTarget = new THREE.Vector3();
+        let startCamPos = new THREE.Vector3();
+        let startControlsTarget = new THREE.Vector3();
+        let transitionProgress = 0;
+        let transitionDuration = 1.0; // ระยะเวลาเคลื่อนที่เป็นวินาที
+
+        function moveTo(camPos, lookAtTarget) {
+            startCamPos.copy(camera.position);
+            startControlsTarget.copy(controls.target);
+            targetCamPos.copy(camPos);
+            targetControlsTarget.copy(lookAtTarget);
+            transitionProgress = 0;
+            isTransitioning = true;
+        }
+
+        // ระบบควบคุมเสียงเพลงผ่านปุ่ม UI
+        const bgm = document.getElementById('bgm');
+        const btnMusic = document.getElementById('btn-music');
+
+        btnMusic.addEventListener('click', () => {
+            if (bgm.paused) {
+                bgm.play().then(() => {
+                    btnMusic.innerText = 'เปิดเพลง';
+                    btnMusic.classList.add('music-on');
+                }).catch(error => console.log("Audio play blocked:", error));
+            } else {
+                bgm.pause();
+                btnMusic.innerText = 'ปิดเพลง';
+                btnMusic.classList.remove('music-on');
+            }
+        });
+
+        // อ้างอิงปุ่ม Go to Print
+        const btnGoToPrint = document.getElementById('btn-goto-print');
+
+        // ตำแหน่งมุมมองกล้องต่างๆ
+        const profileCamPos = new THREE.Vector3(-14, 3, 1); 
+        const profileTarget = new THREE.Vector3(-24, 3, 0);
+
+        const historyCamPos = new THREE.Vector3(-14, 3, 1); 
+        const historyTarget = new THREE.Vector3(-14, 3, 0);
+
+        const projectCamPos = new THREE.Vector3(-14, 3, 1); 
+        const projectTarget = new THREE.Vector3(-13, 3, 10);
+
+        // ผูก Event Listeners กับปุ่ม UI
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            moveTo(defaultCameraPos, defaultTarget);
+            btnGoToPrint.style.display = 'none'; 
+        });
+
+        document.getElementById('btn-profile').addEventListener('click', () => {
+            moveTo(profileCamPos, profileTarget);
+            btnGoToPrint.style.display = 'none'; 
+        });
+
+        document.getElementById('btn-history').addEventListener('click', () => {
+            moveTo(historyCamPos, historyTarget);
+            btnGoToPrint.style.display = 'none'; 
+        });
+
+        document.getElementById('btn-project').addEventListener('click', () => {
+            moveTo(projectCamPos, projectTarget);
+            btnGoToPrint.style.display = 'block'; 
+        });
+
+        // เมื่อกดปุ่ม "Go to Print" ให้เปิดลิงก์เว็บไซต์ในแท็บใหม่
+        btnGoToPrint.addEventListener('click', () => {
+            window.open('https://tin948.github.io/800_rasterprint2.html', '_blank');
+        });
+
+        function animate(t) {
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+
+            // จัดการอนิเมชันการเคลื่อนที่ของกล้องแบบ Smooth (Lerp)
+            if (isTransitioning) {
+                transitionProgress += delta / transitionDuration;
+                if (transitionProgress >= 1) {
+                    transitionProgress = 1;
+                    isTransitioning = false;
+                }
+                
+                // ใช้ EaseInOut พื้นฐานเพื่อให้การเคลื่อนไหวดูนุ่มนวล
+                const easeProgress = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
+
+                camera.position.lerpVectors(startCamPos, targetCamPos, easeProgress);
+                controls.target.lerpVectors(startControlsTarget, targetControlsTarget, easeProgress);
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        animate(0);
+
+        window.addEventListener('keydown', (event) => {
+
+        });
+
+    </script>
+</body>
+
+</html>
