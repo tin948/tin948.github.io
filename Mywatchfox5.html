@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Fox</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* สไตล์สำหรับปุ่ม UI เมนูด้านซ้าย */
+        #menu-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .menu-btn {
+            background-color: black;
+            color: white;
+            padding: 12px 20px;
+            font-family: sans-serif;
+            font-weight: bold;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background 0.2s;
+        }
+
+        .menu-btn:hover {
+            background-color: #333;
+        }
+
+        /* สไตล์เฉพาะสำหรับปุ่ม Go to Print (สีเขียว) */
+        #btn-goto-print {
+            background-color: #00b050;
+            display: none; /* ซ่อนไว้เป็นค่าเริ่มต้น */
+        }
+
+        #btn-goto-print:hover {
+            background-color: #009643;
+        }
+
+        /* สไตล์สำหรับปุ่มควบคุมเพลง (เริ่มต้นเป็นสถานะ "ปิดเพลง" สีแดง) */
+        #btn-music {
+            background-color: #ff3b30;
+        }
+
+        #btn-music:hover {
+            background-color: #d32f2f;
+        }
+
+        /* คลาสสำหรับสถานะเปิดเพลง (สีฟ้า) */
+        .music-on {
+            background-color: #0084ff !important;
+        }
+
+        .music-on:hover {
+            background-color: #006ae6 !important;
+        }
+
+        /* สไตล์ปุ่มสลับกลางวัน/กลางคืน (เริ่มต้นเป็น "กลางคืน" สีน้ำเงิน) */
+        #btn-daynight {
+            background-color: #012a55;
+            transition: background-color 0.3s;
+        }
+
+        #btn-daynight:hover {
+            background-color: #012449;
+        }
+
+        /* คลาสเมื่อเปลี่ยนเป็นสถานะ "กลางวัน" (ปุ่มสีส้มตามภาพตัวอย่าง) */
+        .day-mode-btn {
+            background-color: #ff9800 !important;
+        }
+
+        .day-mode-btn:hover {
+            background-color: #e68900 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ระบบเสียงเพลงพื้นหลัง -->
+    <audio id="bgm" src="https://tin948.github.io/Toby_Fox_-_19._Sunset_of_Seven_Suns_DELTARUNE_Chapter_5_Soundtrack_(mp3.pm).mp3" loop></audio>
+
+    <!-- UI Buttons จัดเรียงตามลำดับ -->
+    <div id="menu-container">
+        <!-- ปุ่มควบคุมเพลงอยู่ด้านบนสุด -->
+        <button class="menu-btn" id="btn-music">ปิดเพลง</button>
+        <!-- ปุ่มสลับกลางวัน / กลางคืน -->
+        <button class="menu-btn" id="btn-daynight">กลางคืน</button>
+        <button class="menu-btn" id="btn-reset">กลับเป็นมุมมองเดิม</button>
+        <button class="menu-btn" id="btn-profile">หน้านิสิต</button>
+        <button class="menu-btn" id="btn-history">ประวัติ</button>
+        <button class="menu-btn" id="btn-project">โปรเจค</button>
+        <!-- ปุ่ม Go to Print ที่จะแสดงขึ้นมาเฉพาะตอนกดโปรเจค -->
+        <button class="menu-btn" id="btn-goto-print">Go to Print</button>
+    </div>
+
+    <!-- core three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+
+    <script>
+
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // Shadow
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // --- ตั้งค่า Tone Mapping ---
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1; // เริ่มต้นที่ค่ากลางวัน (1)
+
+        document.body.appendChild(renderer.domElement);
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        
+        // มุมมองเริ่มต้น
+        const defaultCameraPos = new THREE.Vector3(8, 5, 5);
+        const defaultTarget = new THREE.Vector3(0, 0, 0);
+
+        camera.position.copy(defaultCameraPos);
+        camera.lookAt(defaultTarget);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.copy(defaultTarget);
+
+        const abmientLight = new THREE.AmbientLight(0x404040, 0.5); // soft white light
+        scene.add(abmientLight);
+    
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(10, 10, 10);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // ค่าที่ส่งจาก JavaScript เข้า shader[cite: 5]
+        const uniforms = {
+            uTime: { value: 0.0 },
+            uLightDir: { value: new THREE.Vector3(0.4, 1.0, 0.8).normalize() },
+            uCameraPos: { value: camera.position }
+        };
+
+        const vertexShader = `
+            uniform float uTime;
+            varying vec3 vNormal;
+            varying vec2 vUv;
+            varying vec3 vPosW;
+
+            void main() {
+                vUv = uv;
+                vNormal = normal;
+                vPosW = position;
+      
+                vec3 pos = position;
+
+                // เริ่มเขียน vertex shader ที่นี่
+                pos.z += sin(pos.x * 5.0 + uTime) * 0.1;
+
+               gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            precision mediump float;
+
+            uniform float uTime;
+            uniform vec3 uLightDir;
+
+            varying vec3 vNormal;
+            varying vec2 vUv;
+            varying vec3 vPosW;
+
+            void main() {
+              vec3 N = normalize(vNormal);
+              vec3 L = normalize(uLightDir);
+              float ambient = 0.5;
+              //lambert
+              float diffuse = max(dot(N,L),0.0);
+              //cell
+              float level = 4.0;
+              diffuse = floor(diffuse*level)/level;
+              //phong
+              vec3 R = reflect(-L,N);
+              vec3 V = normalize(vec3(cameraPosition-vPosW));
+              float specular = pow(max(dot(R,V),0.0),20.0);
+              specular = smoothstep(0.5,0.9,specular);
+
+              vec3 baseColor = vec3(1.0, 0.6 + vUv.y * 0.2, 0.8);
+              vec3 color = baseColor*(ambient+diffuse)+specular;
+
+              gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+    
+        // สร้าง ShaderMaterial
+        const material = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader
+        });;
+        const exrSkyboxUrl = 'https://tin948.github.io/qwantani_dusk_2_puresky_1k.exr';
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        new THREE.EXRLoader()
+            .setDataType(THREE.UnsignedByteType)
+            .load(exrSkyboxUrl, (texture) => {
+                const skybox = pmremGenerator.fromEquirectangular(texture).texture;
+                scene.background = skybox;
+                scene.environment = skybox;
+
+                texture.dispose();
+                pmremGenerator.dispose();
+            }, undefined, (error) => {
+                console.error('Unable to load EXR skybox:', error);
+            });
+
+        // อาเรย์สำหรับเก็บ PointLight และ SpotLight ที่มาจากไฟล์ GLB
+        const customLights = [];
+
+        const clock = new THREE.Clock();
+        let mixer;
+
+        // โหลดโมเดลตัวที่ 1 (fox103.glb)
+        const loader = new THREE.GLTFLoader();
+        loader.load('https://tin948.github.io/fox103.glb', (gltf) => {
+            const model = gltf.scene;
+            
+            gltf.scene.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+                if (child.isPointLight || child.isSpotLight || child.isLight) {
+                    child.userData.baseIntensity = 4;
+                    child.intensity = child.userData.baseIntensity;
+                    customLights.push(child);
+                }
+            });
+
+            model.position.set(0, 0, 1);
+            model.scale.set(3, 3, 3);
+            scene.add(model);
+            mixer = new THREE.AnimationMixer(model);
+            const earclip = THREE.AnimationClip.findByName(gltf.animations, 'earAction');
+            const ear2clip = THREE.AnimationClip.findByName(gltf.animations, 'ear2Action');
+            const ear3clip = THREE.AnimationClip.findByName(gltf.animations, 'ear3Action');
+            const Tail1clip = THREE.AnimationClip.findByName(gltf.animations, 'Tail1Action');
+            const Tail2clip = THREE.AnimationClip.findByName(gltf.animations, 'Tail2Action');
+            const Tail3clip = THREE.AnimationClip.findByName(gltf.animations, 'Tail3Action');
+            const Tail4clip = THREE.AnimationClip.findByName(gltf.animations, 'Tail4Action');
+            const Tail5clip = THREE.AnimationClip.findByName(gltf.animations, 'Tail5Action');
+
+            if (earclip) mixer.clipAction(earclip).play();
+            if (ear2clip) mixer.clipAction(ear2clip).play();
+            if (ear3clip) mixer.clipAction(ear3clip).play();
+            if (Tail1clip) mixer.clipAction(Tail1clip).play();
+            if (Tail2clip) mixer.clipAction(Tail2clip).play();
+            if (Tail3clip) mixer.clipAction(Tail3clip).play();
+            if (Tail4clip) mixer.clipAction(Tail4clip).play();
+            if (Tail5clip) mixer.clipAction(Tail5clip).play();
+        });
+
+        // โหลดโมเดลตัวที่ 2 (Sakark.glb) และเชื่อม Material เข้ากับ Shader
+        const loader2 = new THREE.GLTFLoader();
+        loader2.load('https://tin948.github.io/Sakark.glb', (gltf) => {
+            const model = gltf.scene;
+            
+            model.position.set(0, 0, 1);
+            model.scale.set(3, 3, 3);
+            scene.add(model);
+
+            // วนลูปทุก Mesh ด้านในโมเดล แล้วเปลี่ยน Material ให้เป็น ShaderMaterial ของเรา[cite: 5]
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.material = material; // เชื่อมกับ ShaderMaterial ที่สร้างไว้
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+        });
+
+        // ตัวแปรสำหรับการเคลื่อนอนิเมชันกล้อง (Camera Tweening)
+        let isTransitioning = false;
+        let targetCamPos = new THREE.Vector3();
+        let targetControlsTarget = new THREE.Vector3();
+        let startCamPos = new THREE.Vector3();
+        let startControlsTarget = new THREE.Vector3();
+        let transitionProgress = 0;
+        let transitionDuration = 1.0; 
+
+        function moveTo(camPos, lookAtTarget) {
+            startCamPos.copy(camera.position);
+            startControlsTarget.copy(controls.target);
+            targetCamPos.copy(camPos);
+            targetControlsTarget.copy(lookAtTarget);
+            transitionProgress = 0;
+            isTransitioning = true;
+        }
+
+        // ระบบควบคุมเสียงเพลงผ่านปุ่ม UI
+        const bgm = document.getElementById('bgm');
+        const btnMusic = document.getElementById('btn-music');
+
+        btnMusic.addEventListener('click', () => {
+            if (bgm.paused) {
+                bgm.play().then(() => {
+                    btnMusic.innerText = 'เปิดเพลง';
+                    btnMusic.classList.add('music-on');
+                }).catch(error => console.log("Audio play blocked:", error));
+            } else {
+                bgm.pause();
+                btnMusic.innerText = 'ปิดเพลง';
+                btnMusic.classList.remove('music-on');
+            }
+        });
+
+        // ระบบสลับกลางวัน / กลางคืน (Real-time Exposure Transition + เปลี่ยนสีปุ่ม)
+        const btnDayNight = document.getElementById('btn-daynight');
+        let targetExposure = 1; // 1 = กลางวัน, 0.05 = กลางคืน
+
+        btnDayNight.addEventListener('click', () => {
+            if (targetExposure === 1) {
+                targetExposure = 0.2; // สั่งเปลี่ยนเป็นกลางคืน
+                btnDayNight.innerText = 'กลางวัน';
+                btnDayNight.classList.add('day-mode-btn'); // เปลี่ยนเป็นปุ่มสีส้ม
+            } else {
+                targetExposure = 1; // สั่งเปลี่ยนเป็นกลางวัน
+                btnDayNight.innerText = 'กลางคืน';
+                btnDayNight.classList.remove('day-mode-btn'); // กลับเป็นปุ่มสีน้ำเงิน
+            }
+        });
+
+        // อ้างอิงปุ่ม Go to Print
+        const btnGoToPrint = document.getElementById('btn-goto-print');
+
+        // ตำแหน่งมุมมองกล้องต่างๆ
+        const profileCamPos = new THREE.Vector3(-14, 3, 1); 
+        const profileTarget = new THREE.Vector3(-24, 3, 0);
+
+        const historyCamPos = new THREE.Vector3(-14, 3, 1); 
+        const historyTarget = new THREE.Vector3(-14, 3, 0);
+
+        const projectCamPos = new THREE.Vector3(-14, 3, 1); 
+        const projectTarget = new THREE.Vector3(-13, 3, 10);
+
+        // ผูก Event Listeners กับปุ่ม UI
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            moveTo(defaultCameraPos, defaultTarget);
+            btnGoToPrint.style.display = 'none'; 
+        });
+
+        document.getElementById('btn-profile').addEventListener('click', () => {
+            moveTo(profileCamPos, profileTarget);
+            btnGoToPrint.style.display = 'none'; 
+        });
+
+        document.getElementById('btn-history').addEventListener('click', () => {
+            moveTo(historyCamPos, historyTarget);
+            btnGoToPrint.style.display = 'none'; 
+        });
+
+        document.getElementById('btn-project').addEventListener('click', () => {
+            moveTo(projectCamPos, projectTarget);
+            btnGoToPrint.style.display = 'block'; 
+        });
+
+        // เมื่อกดปุ่ม "Go to Print" ให้เปิดลิงก์เว็บไซต์ในแท็บใหม่
+        btnGoToPrint.addEventListener('click', () => {
+            window.open('https://tin948.github.io/800_rasterprint2.html', '_blank');
+        });
+
+        function animate(t) {
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+
+            // อัปเดตเวลาให้ Shader ทำงาน
+            uniforms.uTime.value += delta * 2.0;
+            uniforms.uCameraPos.value.copy(camera.position);
+
+            // ค่อยๆ ปรับค่า toneMappingExposure แบบ Real-time (Lerp) ให้แสงสว่างและท้องฟ้าเปลี่ยนอย่างนุ่มนวล
+            if (Math.abs(renderer.toneMappingExposure - targetExposure) > 0.001) {
+                renderer.toneMappingExposure += (targetExposure - renderer.toneMappingExposure) * 5 * delta;
+            }
+
+            // รักษาความสว่างของแสง Point และ Spot ให้ยังคงสว่างเด่นชัดในโหมดกลางคืน (ชดเชยค่า Exposure ที่ต่ำลง)
+            customLights.forEach(light => {
+                const base = light.userData.baseIntensity || 4;
+                if (targetExposure < 0.5) {
+                    // ตอนกลางคืน: เพิ่ม Intensity ชดเชยความมืดของฉากเพื่อให้แสงไฟยังคงสว่างเด่นชัด
+                    light.intensity = base * (0.5 / renderer.toneMappingExposure);
+                } else {
+                    // ตอนกลางวัน: กลับมาใช้ความสว่างปกติ
+                    light.intensity = base;
+                }
+            });
+
+            // จัดการอนิเมชันการเคลื่อนที่ของกล้องแบบ Smooth (Lerp)
+            if (isTransitioning) {
+                transitionProgress += delta / transitionDuration;
+                if (transitionProgress >= 1) {
+                    transitionProgress = 1;
+                    isTransitioning = false;
+                }
+                
+                const easeProgress = 0.5 - Math.cos(transitionProgress * Math.PI) / 2;
+
+                camera.position.lerpVectors(startCamPos, targetCamPos, easeProgress);
+                controls.target.lerpVectors(startControlsTarget, targetControlsTarget, easeProgress);
+            }
+            controls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        animate(0);
+
+    </script>
+</body>
+
+</html>
